@@ -1,0 +1,41 @@
+# Job 1: runs train_model.py once to produce output/models_h12.joblib on the shared
+# PVC. Apply this (and wait for it to complete) before the webapp Deployment, so the
+# model file exists when the webapp pod starts.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: train-model
+  namespace: inflation-forecast
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: train-model
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: train-model
+          image: cpumachinelearning-webapp:latest
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["python", "train_model.py"]
+          args:
+            - "--horizon=12"
+            - "--data=data/fred_monthly_merged.csv"
+            - "--save-model=output/models_h12.joblib"
+            - "--out=output"
+          volumeMounts:
+            - name: model-output
+              mountPath: /app/output
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+      volumes:
+        - name: model-output
+          persistentVolumeClaim:
+            claimName: model-output-pvc

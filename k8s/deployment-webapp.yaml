@@ -1,0 +1,76 @@
+# Job 2: serves forecasts from the saved model via webapp/app.py (Flask + built React
+# frontend). Reads output/models_h12.joblib from the same PVC the training Job wrote to,
+# so it should be applied/started after job-train-model.yaml has completed.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
+  namespace: inflation-forecast
+  labels:
+    app: webapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      labels:
+        app: webapp
+    spec:
+      containers:
+        - name: webapp
+          image: cpumachinelearning-webapp:latest
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["python", "webapp/app.py"]
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "5000"
+            - name: MODEL_PATH
+              value: "output/models_h12.joblib"
+            - name: DATA_PATH
+              value: "data/fred_monthly_merged.csv"
+          ports:
+            - containerPort: 5000
+          volumeMounts:
+            - name: model-output
+              mountPath: /app/output
+          readinessProbe:
+            httpGet:
+              path: /api/forecast
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/forecast
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+      volumes:
+        - name: model-output
+          persistentVolumeClaim:
+            claimName: model-output-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp
+  namespace: inflation-forecast
+spec:
+  selector:
+    app: webapp
+  ports:
+    - port: 80
+      targetPort: 5000
+  type: ClusterIP

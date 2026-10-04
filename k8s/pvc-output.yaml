@@ -1,0 +1,15 @@
+# Shared storage for trained model bundles (output/*.joblib) so the training Job's
+# output is visible to the webapp Deployment. ReadWriteOnce is fine for single-node
+# clusters (kind/minikube/Docker Desktop); switch to a ReadWriteMany-capable
+# StorageClass if the Job and Deployment pods can land on different nodes.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-output-pvc
+  namespace: inflation-forecast
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 256Mi
