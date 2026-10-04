@@ -1,19 +1,28 @@
-"""Minimal Flask web app that serves US inflation forecasts from a saved model bundle.
+"""Minimal Flask API + React (Vite) frontend that serves US inflation forecasts
+from a saved model bundle.
 
 Reuses forecast_common.py (same feature engineering as train_model.py / predict_model.py)
 so the served predictions are produced identically to the CLI scripts.
 
 Two ways to get a forecast:
   1. GET /api/forecast        -> uses the configured --data file on the server.
-  2. POST /api/forecast/upload (multipart file field "file") or the web form at "/"
+  2. POST /api/forecast/upload (multipart file field "file") via the React upload form
      -> uses an uploaded CSV instead, with the same saved model (no retraining).
 
 The uploaded CSV must have the same columns/format as data/fred_monthly_merged.csv
 (a "date" column plus the columns forecast_common.build_features expects).
 
+Frontend (webapp/frontend, React + Vite):
+  - Development: `npm run dev` in webapp/frontend starts Vite on :5173 and proxies
+    /api/* requests to this Flask server (default :5000). Run both at once.
+  - Production: `npm run build` in webapp/frontend produces webapp/frontend/dist;
+    this Flask app serves those static files directly, so only `python webapp/app.py`
+    is needed.
+
 Usage:
   python webapp/app.py --model ../output/models_h12.joblib --data ../data/fred_monthly_merged.csv
-  # then open http://127.0.0.1:5000/
+  # then open http://127.0.0.1:5000/ (after `npm run build` in webapp/frontend)
+  # or open http://127.0.0.1:5173/ (Vite dev server, while this is also running)
 
 Environment variables (used if CLI args are omitted):
   MODEL_PATH, DATA_PATH, PORT
@@ -26,19 +35,16 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, request, send_from_directory
 
 # Allow running this file directly (python webapp/app.py) by adding the repo root to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from forecast_common import build_features, load_models, score  # noqa: E402
 
-FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
-app = Flask(
-    __name__,
-    template_folder=str(FRONTEND_DIR),
-    static_folder=str(FRONTEND_DIR / "static"),
-)
+# React (Vite) build output; produced by `npm run build` in webapp/frontend
+FRONTEND_DIST = Path(__file__).resolve().parent / "frontend" / "dist"
+app = Flask(__name__, static_folder=None)
 
 STATE = {"model_path": None, "data_path": None}
 
@@ -105,8 +111,24 @@ def get_forecast_from_upload(file_storage) -> dict:
 
 
 @app.route("/")
-def index():
-    return render_template("index.html")
+@app.route("/<path:path>")
+def index(path=""):
+    """Serve the built React app (webapp/frontend/dist). Run `npm run build` in
+    webapp/frontend first; during development use `npm run dev` (Vite on :5173)
+    instead, which proxies /api/* to this server."""
+    if not FRONTEND_DIST.exists():
+        return (
+            "Frontend not built yet. Run:\n"
+            "  cd webapp/frontend && npm install && npm run build\n"
+            "or for development, run `npm run dev` there and open http://127.0.0.1:5173/ "
+            "while this Flask server keeps running.",
+            200,
+            {"Content-Type": "text/plain"},
+        )
+    full_path = FRONTEND_DIST / path
+    if path and full_path.is_file():
+        return send_from_directory(FRONTEND_DIST, path)
+    return send_from_directory(FRONTEND_DIST, "index.html")
 
 
 @app.route("/api/forecast")

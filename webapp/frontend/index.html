@@ -1,35 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>US Inflation Forecast</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-  <h1>US CPI Inflation Forecast</h1>
-  <p class="muted">Served from a saved model bundle (train_model.py --save-model), via forecast_common.py feature engineering.</p>
-
-  <div class="panel">
-    <h2 style="margin-top:0">Server data forecast</h2>
-    <div id="error"></div>
-    <div id="content">Loading…</div>
-  </div>
-
-  <div class="panel">
-    <h2 style="margin-top:0">Forecast from an uploaded CSV</h2>
-    <p class="muted">
-      CSV must have a <code>date</code> column plus the columns the model expects
-      (us_cpi, us_unemployment_pct, us_fed_funds_pct, us_industrial_production, us_10y_treasury_pct),
-      same format as data/fred_monthly_merged.csv. The saved model is reused as-is (no retraining).
-    </p>
-    <form id="upload-form">
-      <input type="file" id="csv-file" name="file" accept=".csv" required>
-      <button type="submit">Forecast</button>
-    </form>
-    <div id="upload-error"></div>
-    <div id="upload-content"></div>
-  </div>
-
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>US Inflation Forecast</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
