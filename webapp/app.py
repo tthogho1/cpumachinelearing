@@ -33,7 +33,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from forecast_common import build_features, load_models, score  # noqa: E402
 
-app = Flask(__name__)
+FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
+app = Flask(
+    __name__,
+    template_folder=str(FRONTEND_DIR),
+    static_folder=str(FRONTEND_DIR / "static"),
+)
 
 STATE = {"model_path": None, "data_path": None}
 
