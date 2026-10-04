@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>US Inflation Forecast</title>
+  <style>
+    body { font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; color: #222; }
+    h1 { font-size: 1.4rem; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+    th, td { border: 1px solid #ddd; padding: 8px 10px; text-align: right; }
+    th:first-child, td:first-child { text-align: left; }
+    th { background: #f5f5f5; }
+    .muted { color: #777; font-size: 0.9rem; }
+    #error { color: #b00020; }
+  </style>
+</head>
+<body>
+  <h1>US CPI Inflation Forecast</h1>
+  <p class="muted">Served from a saved model bundle (train_model.py --save-model), via forecast_common.py feature engineering.</p>
+
+  <div id="error"></div>
+  <div id="content">Loading…</div>
+
+  <script>
+    fetch("/api/forecast")
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          document.getElementById("error").textContent = "Error: " + data.error;
+          document.getElementById("content").textContent = "";
+          return;
+        }
+        let html = `<p><strong>Origin:</strong> ${data.origin} &nbsp; `
+                 + `<strong>Current YoY:</strong> ${data.current_yoy_pct}% &nbsp; `
+                 + `<strong>Horizon:</strong> ${data.horizon_months} months &nbsp; `
+                 + `<strong>Target month:</strong> ${data.target_month}</p>`;
+
+        html += "<h2>Forecasts</h2><table><tr><th>Model</th><th>Forecast YoY %</th></tr>";
+        for (const f of data.forecasts) {
+          html += `<tr><td>${f.model}</td><td>${f.forecast_yoy_pct}</td></tr>`;
+        }
+        html += "</table>";
+
+        html += "<h2>Evaluation (in-sample)</h2><table><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>RMSE vs no-change</th></tr>";
+        for (const row of data.evaluation) {
+          html += `<tr><td>${row.model}</td><td>${row.MAE}</td><td>${row.RMSE}</td><td>${row.RMSE_vs_no_change}</td></tr>`;
+        }
+        html += "</table>";
+
+        document.getElementById("content").innerHTML = html;
+      })
+      .catch(err => {
+        document.getElementById("error").textContent = "Fetch failed: " + err;
+      });
+  </script>
+</body>
+</html>
