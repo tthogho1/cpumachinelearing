@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+webapp/frontend/node_modules/
+webapp/frontend/dist/
+output/
+*.log
+.DS_Store

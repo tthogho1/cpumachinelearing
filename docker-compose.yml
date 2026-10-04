@@ -1,0 +1,20 @@
+services:
+  webapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cpumachinelearning-webapp:latest
+    container_name: inflation-forecast-webapp
+    ports:
+      - "5000:5000"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 5000
+      MODEL_PATH: output/models_h12.joblib
+      DATA_PATH: data/fred_monthly_merged.csv
+    volumes:
+      # Saved model bundles (train_model.py --save-model) persist across rebuilds
+      - ./output:/app/output
+      # Mount data/ read-write so fetch_economic_data.py output or new CSVs are visible
+      - ./data:/app/data
+    restart: unless-stopped

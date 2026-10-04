@@ -162,6 +162,8 @@ def main():
                          help="Path to a saved model bundle (joblib) created by train_model.py --save-model")
     parser.add_argument("--data", default=os.environ.get("DATA_PATH", "data/fred_monthly_merged.csv"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 5000)))
+    parser.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"),
+                         help="Bind address (use 0.0.0.0 inside Docker)")
     parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 
@@ -171,7 +173,7 @@ def main():
 
     print(f"Model: {STATE['model_path']}")
     print(f"Data:  {STATE['data_path']}")
-    app.run(host="127.0.0.1", port=args.port, debug=args.debug)
+    app.run(host=args.host, port=args.port, debug=args.debug)
 
 
 if __name__ == "__main__":

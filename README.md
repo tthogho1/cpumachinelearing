@@ -108,6 +108,20 @@ curl http://127.0.0.1:5000/api/forecast
 curl -F "file=@data/fred_monthly_merged.csv" http://127.0.0.1:5000/api/forecast/upload
 ```
 
+**Docker (builds frontend + API into one image):**
+
+```sh
+docker compose up --build
+# open http://127.0.0.1:5000/
+```
+
+This builds the React frontend in a Node stage, then copies the built assets into a
+Python/Flask image (see `Dockerfile`). `docker-compose.yml` mounts `./data` and
+`./output` into the container, so a saved model (`output/models_h12.joblib`, created
+on the host via `train_model.py --save-model`) is used without being baked into the
+image, and any CSVs you fetch/add on the host are visible inside the container too.
+Stop with `docker compose down`.
+
 ## Design notes
 
 - **No look-ahead:** a feature at row `t` only uses data from month `t` or earlier.
