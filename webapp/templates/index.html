@@ -6,22 +6,65 @@
   <style>
     body { font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; color: #222; }
     h1 { font-size: 1.4rem; }
+    h2 { font-size: 1.1rem; margin-top: 28px; }
     table { border-collapse: collapse; width: 100%; margin: 16px 0; }
     th, td { border: 1px solid #ddd; padding: 8px 10px; text-align: right; }
     th:first-child, td:first-child { text-align: left; }
     th { background: #f5f5f5; }
     .muted { color: #777; font-size: 0.9rem; }
-    #error { color: #b00020; }
+    #error, #upload-error { color: #b00020; }
+    .panel { border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px; margin-top: 16px; }
+    input[type="file"] { margin-right: 8px; }
+    button { padding: 6px 14px; cursor: pointer; }
   </style>
 </head>
 <body>
   <h1>US CPI Inflation Forecast</h1>
   <p class="muted">Served from a saved model bundle (train_model.py --save-model), via forecast_common.py feature engineering.</p>
 
-  <div id="error"></div>
-  <div id="content">Loading…</div>
+  <div class="panel">
+    <h2 style="margin-top:0">Server data forecast</h2>
+    <div id="error"></div>
+    <div id="content">Loading…</div>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Forecast from an uploaded CSV</h2>
+    <p class="muted">
+      CSV must have a <code>date</code> column plus the columns the model expects
+      (us_cpi, us_unemployment_pct, us_fed_funds_pct, us_industrial_production, us_10y_treasury_pct),
+      same format as data/fred_monthly_merged.csv. The saved model is reused as-is (no retraining).
+    </p>
+    <form id="upload-form">
+      <input type="file" id="csv-file" name="file" accept=".csv" required>
+      <button type="submit">Forecast</button>
+    </form>
+    <div id="upload-error"></div>
+    <div id="upload-content"></div>
+  </div>
 
   <script>
+    function renderForecast(containerId, data) {
+      let html = `<p><strong>Origin:</strong> ${data.origin} &nbsp; `
+               + `<strong>Current YoY:</strong> ${data.current_yoy_pct}% &nbsp; `
+               + `<strong>Horizon:</strong> ${data.horizon_months} months &nbsp; `
+               + `<strong>Target month:</strong> ${data.target_month} &nbsp; `
+               + `<strong>Rows used:</strong> ${data.rows_used}</p>`;
+
+      html += "<h3>Forecasts</h3><table><tr><th>Model</th><th>Forecast YoY %</th></tr>";
+      for (const f of data.forecasts) {
+        html += `<tr><td>${f.model}</td><td>${f.forecast_yoy_pct}</td></tr>`;
+      }
+      html += "</table>";
+
+      html += "<h3>Evaluation</h3><table><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>RMSE vs no-change</th></tr>";
+      for (const row of data.evaluation) {
+        html += `<tr><td>${row.model}</td><td>${row.MAE}</td><td>${row.RMSE}</td><td>${row.RMSE_vs_no_change}</td></tr>`;
+      }
+      html += "</table>";
+      document.getElementById(containerId).innerHTML = html;
+    }
+
     fetch("/api/forecast")
       .then(r => r.json())
       .then(data => {
@@ -30,28 +73,38 @@
           document.getElementById("content").textContent = "";
           return;
         }
-        let html = `<p><strong>Origin:</strong> ${data.origin} &nbsp; `
-                 + `<strong>Current YoY:</strong> ${data.current_yoy_pct}% &nbsp; `
-                 + `<strong>Horizon:</strong> ${data.horizon_months} months &nbsp; `
-                 + `<strong>Target month:</strong> ${data.target_month}</p>`;
-
-        html += "<h2>Forecasts</h2><table><tr><th>Model</th><th>Forecast YoY %</th></tr>";
-        for (const f of data.forecasts) {
-          html += `<tr><td>${f.model}</td><td>${f.forecast_yoy_pct}</td></tr>`;
-        }
-        html += "</table>";
-
-        html += "<h2>Evaluation (in-sample)</h2><table><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>RMSE vs no-change</th></tr>";
-        for (const row of data.evaluation) {
-          html += `<tr><td>${row.model}</td><td>${row.MAE}</td><td>${row.RMSE}</td><td>${row.RMSE_vs_no_change}</td></tr>`;
-        }
-        html += "</table>";
-
-        document.getElementById("content").innerHTML = html;
+        renderForecast("content", data);
       })
       .catch(err => {
         document.getElementById("error").textContent = "Fetch failed: " + err;
       });
+
+    document.getElementById("upload-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      document.getElementById("upload-error").textContent = "";
+      document.getElementById("upload-content").textContent = "Processing…";
+
+      const fileInput = document.getElementById("csv-file");
+      if (!fileInput.files.length) return;
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      fetch("/api/forecast/upload", { method: "POST", body: formData })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            document.getElementById("upload-error").textContent = "Error: " + data.error;
+            document.getElementById("upload-content").textContent = "";
+            return;
+          }
+          renderForecast("upload-content", data);
+        })
+        .catch(err => {
+          document.getElementById("upload-error").textContent = "Upload failed: " + err;
+          document.getElementById("upload-content").textContent = "";
+        });
+    });
   </script>
 </body>
 </html>
