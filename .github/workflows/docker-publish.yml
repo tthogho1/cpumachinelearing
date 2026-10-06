@@ -24,6 +24,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # data/ is gitignored (regenerated from public World Bank/FRED endpoints,
+      # no API key needed) but the Dockerfile's `COPY data/ data/` expects it to
+      # exist in the build context, so fetch it here before building the image.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch economic data for data/
+        run: |
+          pip install --no-cache-dir pandas requests
+          python fetch_economic_data.py
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
