@@ -6,3 +6,12 @@ resources:
   - pvc-output.yaml
   - job-train-model.yaml
   - deployment-webapp.yaml
+
+# Pin the deployed tag here (e.g. a CI-built git-sha tag) instead of editing each
+# manifest; override at apply time with:
+#   kubectl kustomize k8s | kubectl apply -f -
+# or:
+#   (cd k8s && kustomize edit set image ghcr.io/tthogho1/cpumachinelearning-webapp=:<tag>)
+images:
+  - name: ghcr.io/tthogho1/cpumachinelearning-webapp
+    newTag: latest

@@ -16,8 +16,8 @@ spec:
       restartPolicy: Never
       containers:
         - name: train-model
-          image: cpumachinelearning-webapp:latest
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/tthogho1/cpumachinelearning-webapp:latest
+          imagePullPolicy: Always
           workingDir: /app
           command: ["python", "train_model.py"]
           args:

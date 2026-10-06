@@ -20,8 +20,8 @@ spec:
     spec:
       containers:
         - name: webapp
-          image: cpumachinelearning-webapp:latest
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/tthogho1/cpumachinelearning-webapp:latest
+          imagePullPolicy: Always
           workingDir: /app
           command: ["python", "webapp/app.py"]
           env:
