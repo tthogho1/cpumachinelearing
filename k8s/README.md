@@ -89,6 +89,27 @@ Or, with kustomize (applies everything, but doesn't wait between steps — run t
 kubectl apply -k k8s/
 ```
 
+## Churn model (train_churn.py + webappchrun)
+
+Same image, namespace and PVC as above:
+
+- **`job-train-churn.yaml`**: a `Job` that runs `train_churn.py` and writes
+  `output/churn_xgb.joblib` to the PVC.
+- **`deployment-webappchrun.yaml`**: a `Deployment` + `Service` (`webappchrun`, port
+  80 → 5001) that runs `webappchrun/app.py` and reads that model.
+
+```sh
+kubectl apply -f k8s/job-train-churn.yaml
+kubectl wait --for=condition=complete job/train-churn -n inflation-forecast --timeout=300s
+kubectl apply -f k8s/deployment-webappchrun.yaml
+
+kubectl port-forward -n inflation-forecast svc/webappchrun 8081:80
+# open http://127.0.0.1:8081/
+```
+
+Retrain: `kubectl delete job train-churn -n inflation-forecast`, re-apply the Job,
+then `kubectl rollout restart deployment/webappchrun -n inflation-forecast`.
+
 ## Check status
 
 ```sh

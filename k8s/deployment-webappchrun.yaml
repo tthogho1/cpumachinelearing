@@ -1,0 +1,74 @@
+# Serves churn predictions via webappchrun/app.py (Flask API + static HTML form).
+# Reads output/churn_xgb.joblib from the same PVC the train-churn Job wrote to, so it
+# should be applied/started after job-train-churn.yaml has completed.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webappchrun
+  namespace: inflation-forecast
+  labels:
+    app: webappchrun
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webappchrun
+  template:
+    metadata:
+      labels:
+        app: webappchrun
+    spec:
+      containers:
+        - name: webappchrun
+          image: ghcr.io/tthogho1/cpumachinelearning-webapp:latest
+          imagePullPolicy: Always
+          workingDir: /app
+          command: ["python", "webappchrun/app.py"]
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "5001"
+            - name: MODEL_PATH
+              value: "output/churn_xgb.joblib"
+          ports:
+            - containerPort: 5001
+          volumeMounts:
+            - name: model-output
+              mountPath: /app/output
+          readinessProbe:
+            httpGet:
+              path: /api/schema
+              port: 5001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/schema
+              port: 5001
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+      volumes:
+        - name: model-output
+          persistentVolumeClaim:
+            claimName: model-output-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webappchrun
+  namespace: inflation-forecast
+spec:
+  selector:
+    app: webappchrun
+  ports:
+    - port: 80
+      targetPort: 5001
+  type: ClusterIP

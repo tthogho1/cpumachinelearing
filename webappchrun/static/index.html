@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Customer Churn Prediction</title>
+    <style>
+      body {
+        font-family: -apple-system, Helvetica, Arial, sans-serif;
+        color: #222;
+        margin: 0;
+        background: #fafafa;
+      }
+
+      .container {
+        max-width: 720px;
+        margin: 40px auto;
+        padding: 0 16px;
+      }
+
+      h1 {
+        font-size: 1.4rem;
+      }
+
+      h2 {
+        font-size: 1.1rem;
+        margin-top: 0;
+      }
+
+      .muted {
+        color: #777;
+        font-size: 0.9rem;
+      }
+
+      .error {
+        color: #b00020;
+      }
+
+      .panel {
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        padding: 16px;
+        margin-top: 16px;
+        background: #fff;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 12px 16px;
+      }
+
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 0.9rem;
+      }
+
+      select,
+      input {
+        font: inherit;
+        padding: 6px 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: #fff;
+      }
+
+      button {
+        font: inherit;
+        margin-top: 16px;
+        padding: 8px 20px;
+        border: none;
+        border-radius: 4px;
+        background: #1f6feb;
+        color: #fff;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+
+      .prob {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 8px 0;
+      }
+
+      .bar {
+        height: 10px;
+        border-radius: 5px;
+        background: #eee;
+        overflow: hidden;
+      }
+
+      .bar > div {
+        height: 100%;
+      }
+
+      .high {
+        color: #b00020;
+      }
+
+      .low {
+        color: #1a7f37;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Customer Churn Prediction</h1>
+      <p class="muted">
+        Enter a customer's contract details to estimate the probability they will churn
+        (XGBoost model trained by train_churn.py).
+      </p>
+
+      <form id="form" class="panel">
+        <h2>Customer</h2>
+        <div id="fields" class="grid"></div>
+        <button id="submit" type="submit" disabled>Predict</button>
+      </form>
+
+      <div id="result" class="panel" hidden></div>
+    </div>
+
+    <script>
+      const fieldsEl = document.getElementById("fields");
+      const form = document.getElementById("form");
+      const submit = document.getElementById("submit");
+      const resultEl = document.getElementById("result");
+
+      // Sensible starting values so the form can be submitted as-is
+      const DEFAULTS = { tenure: 12, MonthlyCharges: 70 };
+
+      function showError(message) {
+        resultEl.hidden = false;
+        resultEl.innerHTML = "";
+        const p = document.createElement("p");
+        p.className = "error";
+        p.textContent = message;
+        resultEl.appendChild(p);
+      }
+
+      function buildForm(fields) {
+        for (const f of fields) {
+          const label = document.createElement("label");
+          label.textContent = f.label;
+          let input;
+          if (f.type === "cat") {
+            input = document.createElement("select");
+            for (const c of f.choices) {
+              const opt = document.createElement("option");
+              opt.value = String(c);
+              opt.textContent = f.name === "SeniorCitizen" ? (c ? "Yes" : "No") : String(c);
+              input.appendChild(opt);
+            }
+          } else {
+            input = document.createElement("input");
+            input.type = "number";
+            input.min = f.min;
+            input.max = f.max;
+            input.step = f.step;
+            input.required = !f.optional;
+            if (DEFAULTS[f.name] !== undefined) input.value = DEFAULTS[f.name];
+          }
+          input.name = f.name;
+          label.appendChild(input);
+          fieldsEl.appendChild(label);
+        }
+        submit.disabled = false;
+      }
+
+      function showResult(r) {
+        const pct = (r.churn_probability * 100).toFixed(1);
+        const cls = r.churn ? "high" : "low";
+        resultEl.hidden = false;
+        resultEl.innerHTML = `
+          <h2>Result</h2>
+          <div class="prob ${cls}">${pct}%</div>
+          <div class="bar"><div style="width:${pct}%;background:${r.churn ? "#b00020" : "#1a7f37"}"></div></div>
+          <p class="${cls}"><strong>${r.churn ? "Likely to churn" : "Likely to stay"}</strong>
+            (threshold ${(r.threshold * 100).toFixed(0)}%)</p>
+          <p class="muted">Total charges used: ${r.total_charges_used}</p>`;
+      }
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        submit.disabled = true;
+        try {
+          const body = Object.fromEntries(new FormData(form).entries());
+          const res = await fetch("/api/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+          showResult(data);
+        } catch (err) {
+          showError(err.message);
+        } finally {
+          submit.disabled = false;
+        }
+      });
+
+      fetch("/api/schema")
+        .then((res) => res.json())
+        .then((data) => buildForm(data.fields))
+        .catch((err) => showError(`Could not load form: ${err.message}`));
+    </script>
+  </body>
+</html>

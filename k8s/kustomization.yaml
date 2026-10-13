@@ -6,6 +6,8 @@ resources:
   - pvc-output.yaml
   - job-train-model.yaml
   - deployment-webapp.yaml
+  - job-train-churn.yaml
+  - deployment-webappchrun.yaml
 
 # Pin the deployed tag here (e.g. a CI-built git-sha tag) instead of editing each
 # manifest; override at apply time with:

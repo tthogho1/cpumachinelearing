@@ -1,0 +1,38 @@
+# Runs train_churn.py once to produce output/churn_xgb.joblib on the shared PVC.
+# Apply this (and wait for it to complete) before deployment-webappchrun.yaml, so the
+# model file exists when the churn webapp pod starts.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: train-churn
+  namespace: inflation-forecast
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: train-churn
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: train-churn
+          image: ghcr.io/tthogho1/cpumachinelearning-webapp:latest
+          imagePullPolicy: Always
+          workingDir: /app
+          # Reads data/WA_Fn-UseC_-Telco-Customer-Churn.csv baked into the image and
+          # writes output/churn_xgb.joblib (paths are hard-coded in the script).
+          command: ["python", "train_churn.py"]
+          volumeMounts:
+            - name: model-output
+              mountPath: /app/output
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+      volumes:
+        - name: model-output
+          persistentVolumeClaim:
+            claimName: model-output-pvc
