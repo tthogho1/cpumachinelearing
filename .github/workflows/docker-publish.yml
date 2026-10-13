@@ -37,6 +37,13 @@ jobs:
           pip install --no-cache-dir pandas requests
           python fetch_economic_data.py
 
+      # Telco customer churn dataset used by train_churn.py (IBM's public copy of the
+      # Kaggle "WA_Fn-UseC_-Telco-Customer-Churn.csv"), saved under its original name.
+      - name: Fetch Telco churn dataset for data/
+        run: |
+          curl -fsSL --retry 3 -o data/WA_Fn-UseC_-Telco-Customer-Churn.csv \
+            https://raw.githubusercontent.com/IBM/telco-customer-churn-on-icp4d/master/data/Telco-Customer-Churn.csv
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:

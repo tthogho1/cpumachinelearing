@@ -20,8 +20,9 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # App code
-COPY fetch_economic_data.py forecast_common.py train_model.py predict_model.py ./
+COPY fetch_economic_data.py forecast_common.py train_model.py predict_model.py train_churn.py ./
 COPY webapp/app.py webapp/app.py
+COPY webappchrun/ webappchrun/
 COPY data/ data/
 
 # Built frontend from stage 1
